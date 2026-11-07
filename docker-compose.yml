@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: giapha
+      POSTGRES_USER: ${DB_USER:-giapha}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-giapha}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-giapha} -d giapha"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/giapha
+      DB_USER: ${DB_USER:-giapha}
+      DB_PASSWORD: ${DB_PASSWORD:-giapha}
+      JWT_SECRET: ${JWT_SECRET:-please-change-this-secret-in-production-at-least-32-bytes}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8088,http://localhost:5173}
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-superadmin}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Admin@123}
+      FAMILY_AUTO_APPROVE: ${FAMILY_AUTO_APPROVE:-false}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-localhost}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@giapha.local}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    ports:
+      - "8081:8080"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8088:80"
+
+volumes:
+  pgdata:
